@@ -18,16 +18,16 @@ A publicly reachable RAG chat app at `https://clint.broadhead.dev`, built with N
 
 ## Decisions so far
 
-<!-- one line per resolved ticket; gist + link, never the detail itself -->
-
-_None yet._
+- [Research Cloudflare deployment path for Next.js App Router](issues/01-research-cloudflare-nextjs-deploy.md): Cloudflare Workers via `@opennextjs/cloudflare` (Next 15.5.x, `nodejs_compat`); `next-on-pages` deprecated; secrets via `wrangler secret put`; attach `clint.broadhead.dev` as a Workers Custom Domain **after deleting the existing AAAA record**; streaming unconstrained, Free CPU 10 ms/request.
+- [Research OpenRouter model and cost envelope for resume Q&A](issues/02-research-openrouter-model-cost.md): ~$0.000125 per turn on `openai/gpt-oss-20b` ($10 ≈ 80k turns); SSE streaming with `: OPENROUTER PROCESSING` keep-alives and a non-standard usage chunk; per-key credit limits reported by `GET /api/v1/key`, exhaustion = 402 + `limit_source`; `:free` variants 20 RPM / 50 RPD under $10 lifetime credits.
+- [Research retrieval strategy for a single-document RAG](issues/03-research-single-doc-retrieval.md): stuffing would match answer quality at this corpus size, but real retrieval is the defensible choice because the pipeline is what the portfolio proves — Workers AI `@cf/baai/bge-m3` embeddings into Vectorize, chunked by resume section; free tier covers ~100% of it.
+- [Research Cloudflare-native token gating and rate limiting](issues/04-research-cloudflare-token-gating.md): digest-compare the token against a Worker secret, set an HMAC-signed `httpOnly` cookie (7 days), then `ratelimit` binding for bursts plus a **D1 daily counter** as the hard spend ceiling — $0 on Workers Free. KV unfit; zone WAF is IP-only and cannot key on the token.
 
 ## Not yet specified
 
 - How updates to the resume propagate through the deployed app (re-embed? redeploy? no-op?) — hangs on the retrieval-architecture decision (ticket 07).
 - Whether chat needs multi-turn memory ("and where did he work before that?") — hangs on ticket 07 and the grounding posture (ticket 08).
 - What visibility exists into abuse or cost overrun after launch — hangs on the token design (ticket 10) and deployment mechanism (ticket 11).
-- Whether Cloudflare free-tier runtime limits (Worker CPU, subrequests) constrain streaming or embedding at runtime — hangs on the deployment research (ticket 01).
 - How the project is presented publicly once live (README, demo link, resume bullet) — hangs on the app existing (tickets 06, 13).
 
 ## Out of scope

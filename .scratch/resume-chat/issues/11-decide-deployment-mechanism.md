@@ -12,6 +12,10 @@ Decide how deploys happen and how secrets and config are managed, informed by th
 - Where the OpenRouter key and the token list live, and how they are rotated.
 - Preview versus production environments, and whether previews are reachable publicly.
 - The rollback path.
-- Anything Cloudflare's runtime limits force (streaming, cold starts, bundle size) — cross-check against ticket 01's findings.
 
 HITL.
+
+Carried in from *Research Cloudflare deployment path for Next.js App Router*:
+
+- The runtime path (OpenNext + Next 15.5.x versus `vinext` + Next 16) is fixed by *Decide project conventions and repo scaffold shape* — consume that choice here, don't reopen it.
+- Workers **Free** allows only 10 ms CPU per request, which can error SSR-heavy pages; decide whether the app targets Free or Paid, and set `limits.cpu_ms` accordingly if Paid.

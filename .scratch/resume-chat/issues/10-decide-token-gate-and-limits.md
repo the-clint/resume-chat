@@ -15,3 +15,5 @@ Decide the exact access flow, informed by the Cloudflare token-gating research (
 - The operating procedure for issuing and revoking a token (where the list lives, who edits it, how fast a revocation takes effect).
 
 HITL.
+
+Two empirical checks to carry in from *Research Cloudflare-native token gating and rate limiting*, settled during implementation rather than blocking this decision: whether the `ratelimit` binding is available on the Workers **Free** plan (no primary doc confirms or denies it), and which expression fields the Free plan permits in WAF custom rules.
