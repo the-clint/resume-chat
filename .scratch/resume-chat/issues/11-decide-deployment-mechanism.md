@@ -19,3 +19,4 @@ Carried in from *Research Cloudflare deployment path for Next.js App Router*:
 
 - The runtime path (OpenNext + Next 15.5.x versus `vinext` + Next 16) is fixed by *Decide project conventions and repo scaffold shape* — consume that choice here, don't reopen it.
 - Workers **Free** allows only 10 ms CPU per request, which can error SSR-heavy pages; decide whether the app targets Free or Paid, and set `limits.cpu_ms` accordingly if Paid.
+- Secrets/config ownership is fixed by *Decide project conventions and repo scaffold shape*: **varlock**, not `wrangler secret put`. Resolve the deploy-time flow here (how varlock's Cloudflare integration feeds the deployed Worker, rotation procedure) without reopening the tool choice.
