@@ -23,9 +23,4 @@ Done 2026-09-20 (commit `Scaffold Next.js 15.5 App Router app with Tailwind v4, 
 
 **Verified:** `npm run lint` clean, `npm run build` succeeds (static `/` route), dev server serves `HTTP 200` at `localhost:3000`. Run locally: `npm install && npm run dev`.
 
-**Remote:** `origin` is set to `git@github.com:the-clint/resume-chat.git` (SSH auth confirmed working as `the-clint`). No `gh` CLI and no API token on this machine, so the repo itself must be created by hand — the one HITL step left:
-
-1. Create an **empty public** repo named `resume-chat` under `the-clint` on github.com (no README/license — local commits exist).
-2. `git push -u origin main` from the repo root.
-
-**Boundary honored:** no OpenNext/`@opennextjs/cloudflare` wiring, no `wrangler` config, and no varlock Next/Cloudflare integration were added — that deploy-time machinery belongs to *Decide deployment mechanism, secrets, and environments*.
+**Remote:** `origin` = `git@github.com:the-clint/resume-chat.git`, public repo created and `main` pushed 2026-09-20 — verified `git ls-remote` head matches local `main` (`62adc30`). HITL checklist complete. `gh` CLI installed (2.101.0) but unauthenticated.
