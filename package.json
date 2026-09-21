@@ -6,6 +6,9 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
+    "embed:resume": "tsx scripts/embed-resume.ts",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
@@ -13,11 +16,11 @@
   "dependencies": {
     "next": "15.5.25",
     "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "varlock": "^1.20.0"
+    "react-dom": "19.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@opennextjs/cloudflare": "^1.20.6",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -27,7 +30,9 @@
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.9.8",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "wrangler": "^4.136.1"
   },
   "allowScripts": {
     "unrs-resolver@1.12.2": true

@@ -40,4 +40,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-!.env.schema
+#llm
+/.scratch/**/*
+
+# opennext / cloudflare
+/.open-next/
+/.wrangler/
+/.dev.vars

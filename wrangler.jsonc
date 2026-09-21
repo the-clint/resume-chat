@@ -1,0 +1,52 @@
+// Wrangler config sketch from ticket 11 (decide deployment mechanism, resolved 2026-09-21).
+// Deploy path: Cloudflare Workers Builds (push-to-deploy) — dashboard-connected to GitHub,
+// deploy command `npx opennextjs-cloudflare deploy`. No secrets live here (dashboard / wrangler secret put).
+{
+  "name": "resume-chat",
+  "main": ".open-next/worker.js",
+  // >= 2024-09-23 required by @opennextjs/cloudflare; 2026-08-04+ enables nodejs_compat by default.
+  "compatibility_date": "2026-08-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+  },
+  // Ticket 11 decision: no preview environment, no workers.dev URL. Production is the
+  // Workers Custom Domain on clint.broadhead.dev (ticket 13 attaches it).
+  "workers_dev": false,
+  // Ticket 13: the stale proxied CNAME on clint.broadhead.dev was deleted 2026-09-21
+  // (it was the HTTP 530 / error 1016 origin); the custom domain attaches on deploy —
+  // Cloudflare creates the proxied DNS record and the TLS certificate automatically.
+  "routes": [{ "pattern": "clint.broadhead.dev", "custom_domain": true }],
+
+  // Ticket 11 decision: Workers Free (10 ms CPU cap, cannot be raised) — keep the landing
+  // page prerendered and rendering off the request path. Deliberately NO "limits" block.
+  // Escape hatch if Error 1102 appears: Workers Paid (~$5/mo).
+
+  // Non-secret config as vars (ticket 09: model slug behind an env var; prod pins the paid slug).
+  "vars": {
+    "OPENROUTER_MODEL": "openai/gpt-oss-20b",
+  },
+
+  // Secrets (set once via dashboard or `npx wrangler secret put`; rotate without redeploy):
+  //   OPENROUTER_API_KEY  — prod key, $10 credit limit, no reset (ticket 09)
+  //   TOKEN_LIST          — JSON list of {id, name, sha256(token)} (ticket 10)
+  //   SESSION_HMAC_KEY    — signs the session cookie (ticket 10)
+
+  // Bindings (ticket 14 owns this section; ticket 10 adds DB/RATE_LIMITER when those
+  // resources exist). RESUME_VECTORS must exist before any deploy succeeds:
+  //   npx wrangler vectorize create resume-chunks --dimensions 1024 --metric cosine
+  // "remote": true routes bindings through the deployed resources in local dev and
+  // getPlatformProxy (Workers AI and Vectorize have no local simulation — remote is
+  // the recommended setting for both; deploy ignores the flag).
+  // "d1_databases": [{ "binding": "DB", "database_name": "resume-chat", "database_id": "<id>" }],
+  "vectorize": [
+    {
+      "binding": "RESUME_VECTORS",
+      "index_name": "resume-chunks",
+      "remote": true,
+    },
+  ],
+  "ai": { "binding": "AI", "remote": true },
+  // Ticket 10 minute limiter (availability on Free is a carried check; D1 fallback otherwise):
+  // "unsafe": { "bindings": [{ "name": "RATE_LIMITER", "type": "ratelimit", "simple_limit": 10, "period": 60 }] }
+}
