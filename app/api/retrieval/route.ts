@@ -1,13 +1,21 @@
-// Runtime query path (ticket 14): embeds the question in query mode and returns the
-// top-k=3 chunks with scores + metadata from the Vectorize index. Query-only —
-// nothing is embedded-and-stored here; the index is written by `npm run embed:resume`.
-// The chat build (ticket 10) and throwaway retrieval checks consume this route.
+// Runtime query path (ticket 14), gated per ticket 10: the per-request gate
+// (session re-check → minute limiter → D1 usage counter) runs before any
+// retrieval work. 429 bodies carry the limit reason so the UI can show the
+// distinct messages; every 401 carries the identical body (nothing leaks about
+// the token list).
+// Throwaway retrieval checks with a valid token still consume this route.
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { gateRequest } from "@/lib/gate";
 import { retrieveResumeContext } from "@/lib/retrieval";
 
 export async function POST(request: Request): Promise<Response> {
+  const { env } = getCloudflareContext();
+  const gate = await gateRequest(request, env);
+  if (!gate.ok) return gate.response;
+
   let question: unknown;
+
   try {
     const body = await request.json();
     if (body !== null && typeof body === "object" && "question" in body) {
@@ -25,9 +33,7 @@ export async function POST(request: Request): Promise<Response> {
       { status: 400 },
     );
   }
-
   const trimmed = question.trim();
-  const { env } = getCloudflareContext();
   const chunks = await retrieveResumeContext(env, trimmed);
 
   return Response.json({ question: trimmed, chunks });

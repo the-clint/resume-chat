@@ -37,3 +37,35 @@ Resolved 2026-09-21, grilling round (Q1–Q9); all recommendations accepted, con
 - **Operating procedure (Clint-only)**: issue = `npm run token:add <name>` → redeploy; revoke = remove the entry + redeploy. **Revocation takes effect at the recipient's next request** (per-request list re-check) — minutes, not seconds, bounded by deploy time. Documented in the README ops section. No admin UI (map Out of scope).
 
 Both carried empirical checks stay with implementation: `ratelimit` binding on Workers Free (with D1 fallback if absent), and Free-plan WAF custom-rule fields (informs only whether a zone-level pre-filter is possible; never load-bearing here).
+
+## Implementation
+
+Implemented 2026-09-21 (task; scope agreed with Clint: gate + session + limits only — the chat UI/LLM endpoint is a separate ticket).
+
+**What landed:**
+
+- `lib/auth.ts` — pure auth seam (Web Crypto, Workers + Node compatible): `parseTokenList` (validates `{id, name, sha256}`, rejects non-slug/short ids), `verifyToken` (SHA-256 digest compare, constant-time on the digests), `signSession`/`verifySession` (`<token-id>.<expiry-ms>.<hmac>`, HMAC-SHA256, base64url, 7-day fixed TTL), `verifySessionRequest` (signature + expiry + live-list re-check).
+- `lib/gate.ts` — per-request gate, enforced in order: session re-check → minute limiter (`RATE_LIMITER.limit({ key: tokenId })`) → `consumeTurn` D1 counter. Returns `{ ok, tokenId }` or a refusal with an HTTP response; 401 is body-free, 429 bodies carry `minute_limit` / `daily_limit` / `monthly_limit`.
+- `lib/usage.ts` — `consumeTurn`: one `INSERT … ON CONFLICT (token_id) DO UPDATE … RETURNING` keeping `day`/`month`/`day_count`/`month_count` on a single row per token (PK `token_id`), UTC keys; 30/day, 100/month; monthly trip takes precedence; throws on D1 failure (fail closed) and if the UPSERT returns no row.
+- `app/api/login/route.ts` — `POST { token }`; every failure (wrong token, malformed body, missing secret) returns the identical 401 `{"error":"invalid_token"}`; success sets the `rchat_session` cookie (`HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800`).
+- `app/api/retrieval/route.ts` — gated (session + minute limiter + usage counter) ahead of any retrieval work.
+- `wrangler.jsonc` — D1 `DB` binding (database `resume-chat`, id `3384afc5-…b81d`, created this session, region WNAM) and GA-shape `ratelimits` binding (namespace `1001`, 10/60 s). `wrangler types` regenerated.
+- `migrations/0001_usage.sql` + `npx wrangler d1 migrations apply` — applied local and remote.
+- `scripts/token-add.ts` + `npm run token:add <name>` — replaces the README's inline generator; prints the entry on stdout, raw token on stderr.
+- `tests/` (node:test + tsx, `npm test`) — 21 tests over the three pure seams (auth, gate ordering, usage counter + UTC keys); the real UPSERT verified against local D1 in the smoke run.
+- `next.config.ts` — added `initOpenNextCloudflareForDev()` (was missing; `getCloudflareContext()` in dev needs it).
+- Local dev secrets: `.dev.vars` (gitignored) holds `TOKEN_LIST` + `SESSION_HMAC_KEY`; `.env.local` note in the old README replaced.
+- eslint ignores now cover `.open-next/` build output and the generated `worker-configuration.d.ts` (lint was previously drowned by 9.6k build-artifact complaints).
+
+**Smoke run (dev server, real bindings):** no cookie → 401; wrong token → 401; valid token → `Set-Cookie` signed, correct attrs; gated retrieval with cookie → 200 with real Vectorize chunks and a `usage` row written; 12 rapid requests → 10 × 200 then 429 `minute_limit`; forced day_count=30 → next turn 429 `daily_limit`; forced month_count=100 → 429 `monthly_limit`. All 21 unit tests pass; `tsc --noEmit`, eslint, prettier clean.
+
+**Both carried empirical checks, settled:**
+
+- **`ratelimit` binding on Workers Free:** no primary doc states a plan restriction — rate-limit binding docs, Workers limits and pricing pages are plan-silent; the GA changelog says "recommended for all production workloads" ([rate-limit docs](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/), [limits](https://developers.cloudflare.com/workers/platform/limits/), [GA changelog](https://developers.cloudflare.com/changelog/post/2025-09-19-ratelimit-workers-ga/)). The binding is wired in the GA `ratelimits` config shape and works in local dev (miniflare simulates it). Final proof lands with the first deploy — but a D1 fallback is **ruled out as unnecessary**: the 30/day cap is the hard ceiling, so a missing minute limiter cannot raise worst-case spend; it would only smooth bursts. Decision: ship the binding, no fallback code; if the first deploy rejects it, decide again then.
+- **Free-plan WAF custom-rule fields (informs only):** Free gets 5 custom rules, all actions except Log, **no regex** ([custom rules availability](https://developers.cloudflare.com/waf/custom-rules/)); body-field matching (`http.request.body.*`) is paid. A zone-level pre-filter keyed on the token is impossible either way (zone WAF cannot read the cookie/body usefully here) — confirmed never load-bearing.
+
+**Deviations from the ticket text:**
+
+- "Changing the list needs a redeploy" is wrong under the ticket-11 secret mechanism: `wrangler secret put` updates the secret without a redeploy, and revocation takes effect at the next request via the list re-check. The README ops section (written later, ticket 11) already stated this; implementation follows it.
+- Wrangler deprecated the sketched `unsafe.bindings` ratelimit shape at GA (2025-09-19); used the `ratelimits` top-level key instead (same limit, `simple.limit: 10, period: 60`).
+- Ticket 09's monthly message and the daily/minute messages are not yet shown to users — the chat UI maps the API codes when it lands. The API surface (distinct codes, 429/401) is the ticket's part.

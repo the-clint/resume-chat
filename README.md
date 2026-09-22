@@ -29,8 +29,105 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## Deploy
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Deployed to Cloudflare Workers via OpenNext, live at `https://clint.broadhead.dev`.
+Ongoing deploys are git-integrated (Workers Builds); ad-hoc deploys:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run deploy   # opennextjs-cloudflare build && opennextjs-cloudflare deploy
+```
+
+Secrets (including `TOKEN_LIST`, see Operations) live as Worker secrets, managed
+in the dashboard or via `npx wrangler secret put`. Rollback: `npx wrangler rollback`.
+
+## Operations
+
+### `TOKEN_LIST` — format
+
+`TOKEN_LIST` is a single Worker secret holding a JSON array of one entry per
+person. **Digest-only**: raw tokens never appear in the repo, the secret, or any
+file — only their SHA-256 digests.
+
+```json
+[{ "id": "alice-example", "name": "Alice Example", "sha256": "<64 hex chars>" }]
+```
+
+- `id` — slug of the person's name (unique; used in the session cookie and the
+  usage counter; keep stable per person).
+- `name` — display name.
+- `sha256` — hex SHA-256 of the **full raw token including the `rchat_` prefix**.
+
+```bash
+# 1. Generate one entry. Prints the JSON entry on stdout AND the raw token on stderr.
+npm run token:add "Alice Example"
+
+# 2. Append the printed entry to token-list.json (gitignored local copy, starts as []).
+#    Keep ids unique; one entry per person; old digests stay until that token is revoked.
+
+# 3. Publish the list.
+npx wrangler secret put TOKEN_LIST < token-list.json
+
+# 4. Confirm it landed, then share the RAW token out of band (chat/Signal — a link
+#    in the pasted token is the pity you'll have tomorrow).
+npx wrangler secret list
+```
+
+The gate IS live (ticket 10): `POST /api/login` verifies the token against the
+list and sets the session cookie; every gated request re-checks the session
+against the current list.
+
+### Rotating / revoking
+
+Both are: edit `token-list.json`, `npx wrangler secret put TOKEN_LIST < token-list.json`.
+
+- **Revoke** = remove the person's entry (or just their digest). Takes effect at
+  their next request via the per-request list re-check — no redeploy, minutes not
+  seconds (ticket 10/11).
+- **Rotate** = replace their digest with a fresh one (re-run the generate step,
+  share the new raw token first). The old token dies the moment the secret lands.
+  Use this when a token leaks.
+
+Local dev secrets live in `.dev.vars` (gitignored): `TOKEN_LIST` (a JSON string,
+same format) and `SESSION_HMAC_KEY`. The gate reads both from the Worker env.
+
+### Token gate, session, and limits (ticket 10)
+
+- **Login** — `POST /api/login { token }`. Digest-compares the token against
+  `TOKEN_LIST`; on match sets a stateless signed cookie, on miss returns the
+  same 401 for every failure (nothing leaks about the list). No rate limit on
+  login: a 128-bit token space makes brute force impractical.
+- **Session** — cookie `rchat_session` = `<token-id>.<expiry>.<hmac>`,
+  HMAC-SHA256 with `SESSION_HMAC_KEY`, `HttpOnly; Secure; SameSite=Lax; Path=/`,
+  fixed 7-day maxAge. Every gated request re-verifies the signature+expiry
+  **and re-checks the token id against the current list** — revocation kills the
+  existing cookie at the holder's next request, with zero extra storage.
+- **Limits** (each trip returns a distinct message to the user):
+  - Minute: Workers `ratelimit` binding, 10 requests / 60 s, keyed by token id.
+  - Daily: 30 turns/token/day (D1 `usage` table, UTC day key).
+  - Monthly: 100 turns/token/month, resets on the 1st (same table).
+  - D1 errors fail **closed** — the counter exists to protect the bill.
+- **Counter storage** — D1 database `resume-chat` (`DB` binding), table
+  `usage(token_id, day, month, day_count, month_count)`, one row per token, one
+  UPSERT per turn. Schema lives in `migrations/`; after editing it:
+
+  ```bash
+  npx wrangler d1 migrations apply resume-chat --local   # dev
+  npx wrangler d1 migrations apply resume-chat --remote  # prod
+  ```
+
+  To see usage: `npx wrangler d1 execute resume-chat --remote --command "SELECT * FROM usage"`.
+
+Gated routes run the gate in order: session re-check → minute limiter → usage
+counter (`lib/gate.ts`). The chat UI and its distinct friendly messages land
+with the chat ticket; the API already returns `daily_limit` / `monthly_limit` /
+`minute_limit` / `unauthorised` codes.
+
+### Retrieval pipeline
+
+```bash
+npm run embed:resume   # re-chunks content/resume.md, re-embeds, replaces the Vectorize index
+```
+
+Refreshing the corpus = edit `content/resume.md`, run the script. Vectorize
+mutations propagate async (~1–2 min) before queries see them.

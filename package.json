@@ -7,9 +7,11 @@
     "build": "next build --turbopack",
     "start": "next start",
     "embed:resume": "tsx scripts/embed-resume.ts",
+    "token:add": "tsx scripts/token-add.ts",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "lint": "eslint",
+    "test": "tsx --test tests/*.test.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

@@ -59,10 +59,13 @@ function ProtoBanner({
           onClick={() => setScreen(screen === "token" ? "chat" : "token")}
           className="rounded border border-neutral-400 px-2 py-1 hover:bg-neutral-200 dark:hover:bg-neutral-800"
         >
-          {screen === "token" ? "→ skip to chat screen" : "→ back to token screen"}
+          {screen === "token"
+            ? "→ skip to chat screen"
+            : "→ back to token screen"}
         </button>
         <span className="self-center text-xs text-neutral-500">
-          (in the real app the token screen is the gate; this button is prototype-only)
+          (in the real app the token screen is the gate; this button is
+          prototype-only)
         </span>
       </div>
     </div>
@@ -222,7 +225,9 @@ function ChatScreen() {
               loading state
             </button>
             <button
-              onClick={() => simulateTurn("Tell me about the retrieval pipeline")}
+              onClick={() =>
+                simulateTurn("Tell me about the retrieval pipeline")
+              }
               className="rounded border border-neutral-400 px-2 py-1 hover:bg-neutral-200 dark:hover:bg-neutral-800"
             >
               streaming state
@@ -250,10 +255,12 @@ function ChatScreen() {
       <div className="flex-1 space-y-4 overflow-y-auto">
         {messages.length === 0 && phase === "idle" && (
           <div className="flex h-full min-h-64 flex-col items-center justify-center text-center">
-            <h2 className="text-lg font-semibold">Ask about Clint&apos;s resume</h2>
+            <h2 className="text-lg font-semibold">
+              Ask about Clint&apos;s resume
+            </h2>
             <p className="mt-2 max-w-sm text-sm text-neutral-600 dark:text-neutral-400">
-              Answers come only from the resume document — grounding, not
-              vibes. If it isn&apos;t on the resume, the app says so.
+              Answers come only from the resume document — grounding, not vibes.
+              If it isn&apos;t on the resume, the app says so.
             </p>
           </div>
         )}
@@ -330,7 +337,9 @@ function ChatScreen() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={busy ? "Waiting for the answer…" : "Ask about the resume…"}
+            placeholder={
+              busy ? "Waiting for the answer…" : "Ask about the resume…"
+            }
             disabled={busy}
             className="flex-1 rounded-full border border-neutral-400 px-4 py-2 text-sm disabled:opacity-50 dark:border-neutral-600"
           />
@@ -356,11 +365,7 @@ function Dot({ delay }: { delay: string }) {
   );
 }
 
-function RotatingExamples({
-  onPick,
-}: {
-  onPick: (q: string) => void;
-}) {
+function RotatingExamples({ onPick }: { onPick: (q: string) => void }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
 

@@ -38,7 +38,14 @@
   // "remote": true routes bindings through the deployed resources in local dev and
   // getPlatformProxy (Workers AI and Vectorize have no local simulation — remote is
   // the recommended setting for both; deploy ignores the flag).
-  // "d1_databases": [{ "binding": "DB", "database_name": "resume-chat", "database_id": "<id>" }],
+  // Ticket 10: usage counter (30/day, 100/month per token) — lib/usage.ts, one UPSERT per turn.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "resume-chat",
+      "database_id": "3384afc5-cc8a-4bc7-a207-5db32535b81d",
+    },
+  ],
   "vectorize": [
     {
       "binding": "RESUME_VECTORS",
@@ -47,6 +54,18 @@
     },
   ],
   "ai": { "binding": "AI", "remote": true },
-  // Ticket 10 minute limiter (availability on Free is a carried check; D1 fallback otherwise):
-  // "unsafe": { "bindings": [{ "name": "RATE_LIMITER", "type": "ratelimit", "simple_limit": 10, "period": 60 }] }
+  // Ticket 10 minute limiter: 10 requests / 60 s keyed by token id (login exempt).
+  // GA config shape; per-location counters (research 04) — the D1 daily cap carries the hard ceiling.
+  // Availability on Workers Free was a carried check: settled at implementation — no plan
+  // restriction anywhere in the docs (rate-limit docs, Workers limits/pricing pages are
+  // plan-silent; GA changelog "recommended for all production workloads"). Empirical proof
+  // lands with the first deploy; if the binding is rejected on Free, fall back to a D1
+  // burst check (consumeTurn-style) — decided then, not blocking.
+  "ratelimits": [
+    {
+      "name": "RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 10, "period": 60 },
+    },
+  ],
 }

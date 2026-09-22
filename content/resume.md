@@ -27,7 +27,8 @@ Full-stack software developer with 10+ years building and maintaining production
 ## Experience
 
 ### Elwood Staffing Services, Inc. — Salt Lake City, UT
-*National staffing provider · acquired SOS Employment Group (Feb 2013) · 14+ years with one company, advancing from help-desk support through senior software development*
+
+_National staffing provider · acquired SOS Employment Group (Feb 2013) · 14+ years with one company, advancing from help-desk support through senior software development_
 
 #### Senior Application Developer | Apr 2021 – Present
 
@@ -48,7 +49,7 @@ Full-stack software developer with 10+ years building and maintaining production
 
 #### Web Developer | Oct 2015 – May 2019
 
-*Recruited onto the web development team to support consolidated management after the acquisition.*
+_Recruited onto the web development team to support consolidated management after the acquisition._
 
 - Created the suite of applicant-facing web forms powering the company's paperless initiative — the foundation of the applicant platform I still own and maintain today
 - Designed and built an applicant document tracking and storage solution that became a core piece of daily operational software
