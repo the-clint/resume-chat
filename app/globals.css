@@ -12,6 +12,22 @@
   --font-mono: var(--font-geist-mono);
 }
 
+@theme {
+  --animate-example-push: example-push 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* One conveyor row slides left by --push (the outgoing pill's measured width
+   plus gap, set inline from React), so the incoming pill pushes the old one
+   off-screen regardless of how their text widths differ. */
+@keyframes example-push {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-1 * var(--push, 0px)));
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
