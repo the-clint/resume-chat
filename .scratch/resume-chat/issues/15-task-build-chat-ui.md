@@ -64,8 +64,25 @@ revoked session → back to the token screen; upstream down → the generic bubb
 Retry re-ran the turn from the last question; server-rendered `/` returned the token
 screen with no cookie or a forged signature and the chat with a valid one.
 
-**Carried:** prod needs `OPENROUTER_API_KEY` set as a Worker secret and a prod token
-to exercise a real turn (no prod token exists in the repo); local dev needs the same
-key in `.dev.vars` plus a `:free` `OPENROUTER_MODEL`. Ticket 11's "keep the landing
-page prerendered" note no longer holds for `/` — the gate must render per request —
-which costs an HMAC verify, not a rendering pass.
+**Verified on prod** (deployed `f14d8842`, real OpenRouter key): `/` serves the token
+screen (200), `/proto` and the template SVGs are 404, bogus login 401, unauthenticated
+`/api/chat` 401 `unauthorised`, and a token-holder turn streamed a grounded answer
+end to end.
+
+That prod turn caught two prompt violations, both fixed and re-verified with the same
+question: the model invented a duration ("August 2012 until April 2021 — roughly eight
+years and eight months" — the resume's Elwood/SOS run is May 2007 → present, 14+
+years) and appended a `(Sources: sections [1], [2], [3])` footnote. `lib/prompt.ts`
+now forbids computing or summing spans ("quote dates exactly as the excerpts write
+them") and forbids source lists/footnotes outright; the rerun quoted its dates without
+a total, an off-resume question (Rust/Kubernetes) was declined instead of answered
+from general knowledge, and a greeting got a social reply. Whether a deterministic
+retrieval-score gate is still needed stays ticket 08's carried post-launch question.
+
+**Carried:** local dev needs `OPENROUTER_API_KEY` in `.dev.vars` plus a `:free`
+`OPENROUTER_MODEL` (prod has the key as a Worker secret; no dev key exists on this
+machine, so the local run stubbed the upstream hop). Prod's `SESSION_HMAC_KEY` was
+**missing** and was set during this ticket — without it `/api/login` 401s every token,
+so nobody could have logged in. Ticket 11's "keep the landing page prerendered" note
+no longer holds for `/` — the gate must render per request — which costs an HMAC
+verify, not a rendering pass.
