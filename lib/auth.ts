@@ -146,6 +146,23 @@ export function readSessionCookie(request: Request): string | null {
 }
 
 /**
+ * The session decision, cookie in and TokenEntry out: signature + expiry, then
+ * the token id re-checked against the current TOKEN_LIST. A removed entry dies
+ * here. Returns null for unauthenticated / expired / revoked.
+ */
+export async function resolveSession(
+  cookieValue: string | null,
+  tokenListJson: string,
+  hmacSecret: string,
+): Promise<TokenEntry | null> {
+  if (!cookieValue) return null;
+  const tokenId = await verifySession(cookieValue, hmacSecret);
+  if (!tokenId) return null;
+  const list = parseTokenList(tokenListJson);
+  return list.find((entry) => entry.id === tokenId) ?? null;
+}
+
+/**
  * The per-request gate: cookie signature + expiry AND the token id against the
  * current TOKEN_LIST. A removed entry dies at the holder's next request.
  * Returns the token id, or null for unauthenticated / expired / revoked.
@@ -155,10 +172,10 @@ export async function verifySessionRequest(
   tokenListJson: string,
   hmacSecret: string,
 ): Promise<string | null> {
-  const cookieValue = readSessionCookie(request);
-  if (!cookieValue) return null;
-  const tokenId = await verifySession(cookieValue, hmacSecret);
-  if (!tokenId) return null;
-  const list = parseTokenList(tokenListJson);
-  return list.some((entry) => entry.id === tokenId) ? tokenId : null;
+  const entry = await resolveSession(
+    readSessionCookie(request),
+    tokenListJson,
+    hmacSecret,
+  );
+  return entry?.id ?? null;
 }

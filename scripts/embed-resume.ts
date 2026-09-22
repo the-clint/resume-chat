@@ -71,6 +71,7 @@ async function main(): Promise<void> {
           id: chunk.id,
           values,
           metadata: {
+            text: chunk.text,
             section: chunk.section,
             ...(chunk.company ? { company: chunk.company } : {}),
             ...(chunk.dates ? { dates: chunk.dates } : {}),

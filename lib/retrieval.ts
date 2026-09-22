@@ -2,6 +2,9 @@
 // in query mode with bge-m3 and queried against the Vectorize index, top-k=3 with
 // scores + chunk metadata. Query-only — the index is written exclusively by the
 // Embed script (`npm run embed:resume`); nothing is embedded-and-stored at runtime.
+// The chunk text itself rides in the vector metadata (the Embed script writes it),
+// so a query returns the grounding text the chat prompt injects — no runtime reading
+// of content/resume.md, which ticket 07 keeps out of the deployed bundle.
 // Kept free of Next.js/adapter imports so scripts/embed-resume.ts can share the
 // embedding constants.
 
@@ -12,6 +15,8 @@ export const TOP_K = 3;
 export interface RetrievedChunk {
   id: string;
   score: number;
+  /** Markdown text of the chunk — the grounding text the chat prompt injects. */
+  text: string;
   section: string;
   company: string | null;
   dates: string | null;
@@ -43,6 +48,7 @@ export async function retrieveResumeContext(
     return {
       id: match.id,
       score: match.score,
+      text: typeof meta.text === "string" ? meta.text : "",
       section: typeof meta.section === "string" ? meta.section : "",
       company: typeof meta.company === "string" ? meta.company : null,
       dates: typeof meta.dates === "string" ? meta.dates : null,

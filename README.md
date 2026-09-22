@@ -89,7 +89,9 @@ Both are: edit `token-list.json`, `npx wrangler secret put TOKEN_LIST < token-li
   Use this when a token leaks.
 
 Local dev secrets live in `.dev.vars` (gitignored): `TOKEN_LIST` (a JSON string,
-same format) and `SESSION_HMAC_KEY`. The gate reads both from the Worker env.
+same format), `SESSION_HMAC_KEY`, and `OPENROUTER_API_KEY` (a dev key — without
+it `/api/chat` fails at the LLM call). `OPENROUTER_MODEL` is a plain var in
+`wrangler.jsonc`; point it at a `:free` slug locally.
 
 ### Token gate, session, and limits (ticket 10)
 
@@ -118,16 +120,33 @@ same format) and `SESSION_HMAC_KEY`. The gate reads both from the Worker env.
 
   To see usage: `npx wrangler d1 execute resume-chat --remote --command "SELECT * FROM usage"`.
 
+### Chat (the app itself)
+
+`/` is the whole app. The server renders the token screen or the chat from the
+session cookie (`app/page.tsx`, `force-dynamic` — the gate state is never cached);
+`app/chat-app.tsx` owns the two screens, `app/token-screen.tsx` posts to
+`/api/login`, and `app/chat-screen.tsx` streams from `POST /api/chat`.
+
+`POST /api/chat { messages: [{ role, content }] }` runs the gate, retrieves on the
+last message only, and streams OpenRouter's SSE back as `data:` frames of
+`{ type: "delta" | "error" | "done", ... }` (`lib/chat-stream.ts` handles the
+keep-alive comments and the trailing usage chunk). The last 6 turns, the grounding
+rules, and the excerpt labels are built in `lib/prompt.ts`.
+
 Gated routes run the gate in order: session re-check → minute limiter → usage
-counter (`lib/gate.ts`). The chat UI and its distinct friendly messages land
-with the chat ticket; the API already returns `daily_limit` / `monthly_limit` /
-`minute_limit` / `unauthorised` codes.
+counter (`lib/gate.ts`). The UI maps the API's `daily_limit` / `monthly_limit` /
+`minute_limit` / `unauthorised` codes to its own messages — the token screen for
+`unauthorised` (expired or revoked mid-session), and an amber notice for each limit.
 
 ### Retrieval pipeline
 
 ```bash
 npm run embed:resume   # re-chunks content/resume.md, re-embeds, replaces the Vectorize index
 ```
+
+Each vector's metadata carries the chunk text (`section`/`company`/`dates`/
+`skills[]` alongside `text`), so a query returns the grounding text the chat
+prompt injects — the deployed app never reads `content/resume.md`.
 
 Refreshing the corpus = edit `content/resume.md`, run the script. Vectorize
 mutations propagate async (~1–2 min) before queries see them.
